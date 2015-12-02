@@ -1,2 +1,2 @@
 # GoAES
-An implementation of the AES block cipher in Go
+Crazy-optimized AES block cipher written in Go (golang)
