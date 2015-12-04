@@ -12,14 +12,17 @@ import (
 )
 
 func main() {
+	// get sample key and text
 	plaintext := get_sample_text()
 	key := get_sample_key()
+	// encrypt
 	ciphertext := cipher.Cipher(plaintext, key)
 	s1 := string(plaintext[:])
 	fmt.Println(s1)
 	s2 := string(ciphertext[:])
 	fmt.Println(s2)
-	inverse := cipher.Cipher(ciphertext, key)
+	// decrypt
+	inverse := cipher.InvCipher(ciphertext, key)
 	s3 := string(inverse[:])
 	fmt.Println(s3)
 }
