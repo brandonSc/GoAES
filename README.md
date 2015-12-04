@@ -1,2 +1,2 @@
 # GoAES
-Crazy-optimized AES block cipher written in Go (golang)
+Straight-up [FIPS-197](http://csrc.nist.gov/publications/fips/fips197/fips-197.pdf) in Go.
