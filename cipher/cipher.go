@@ -18,7 +18,6 @@ const (
 // @return the AES encrypted plaintext
 //
 func Cipher(input [4 * Nb]byte, word [Nb * (Nr + 1)][4]byte) [4 * Nb]byte {
-	//Nr := (len(key) / (Nb - 1)) // number of rounds (10 for 128 bit)?? [FIPS-197]
 	var state [4][Nb]byte
 
 	// state = input
@@ -39,11 +38,17 @@ func Cipher(input [4 * Nb]byte, word [Nb * (Nr + 1)][4]byte) [4 * Nb]byte {
 	state = ShiftRows(state)
 	state = AddRoundKey(state, word[(Nr*Nb):((Nr+1)*Nb)])
 
-	return input //state
+	var output [4 * Nb]byte
+	for i := 0; i < 4*Nb; i++ {
+		output[i] = state[i%4][i/4]
+	}
+
+	return output
 }
 
 //
 // Break key into distinct key rounds.
+// FIPS-197 section 5.2.
 // @param key the main 128-bit AES key
 // @return a key schedule for rounds in AES
 //
@@ -81,6 +86,7 @@ func AddRoundKey(state [4][Nb]byte, key [][4]byte) [4][Nb]byte {
 	return state
 }
 
+// FIPS-197 section 5.2
 func RotWord(word [4]byte) [4]byte {
 	var temp = word[0]
 	for i := 0; i < 3; i++ {
@@ -90,6 +96,7 @@ func RotWord(word [4]byte) [4]byte {
 	return word
 }
 
+// FIPS-197 section 5.2
 func SubWord(word [4]byte) [4]byte {
 	for i := 0; i < 4; i++ {
 		word[i] = SBox[word[i]]
@@ -97,6 +104,7 @@ func SubWord(word [4]byte) [4]byte {
 	return word
 }
 
+// FIPS-197 section 5.1.1.
 func SubBytes(state [4][Nb]byte) [4][Nb]byte {
 	for r := 0; r < 4; r++ {
 		for c := 0; c < Nb; c++ {
@@ -106,6 +114,7 @@ func SubBytes(state [4][Nb]byte) [4][Nb]byte {
 	return state
 }
 
+// FIPS-197 section 5.1.2.
 func ShiftRows(state [4][Nb]byte) [4][Nb]byte {
 	var temp [4]byte
 	for r := 1; r < 4; r++ {
@@ -119,6 +128,7 @@ func ShiftRows(state [4][Nb]byte) [4][Nb]byte {
 	return state
 }
 
+// FIPS-197 section 5.1.2.
 func MixColumns(state [4][Nb]byte) [4][Nb]byte {
 	for c := 0; c < 4; c++ {
 		var a [128]byte

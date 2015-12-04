@@ -2,19 +2,26 @@ package main
 
 //
 // An implementation of the standard AES block cipher in Go.
-// The intention of this project is to implement AES following NIST's publication FIPS-197
+// The intention of this project is to implement AES following NIST's publication FIPS-197.
 // Citation: http://csrc.nist.gov/publications/fips/fips197/fips-197.pdf
 //
 
 import (
-	//"fmt"
+	"fmt"
 	"github.com/brandonSc/GoAES/cipher"
 )
 
 func main() {
 	plaintext := get_sample_text()
 	key := get_sample_key()
-	cipher.Cipher(plaintext, key)
+	ciphertext := cipher.Cipher(plaintext, key)
+	s1 := string(plaintext[:])
+	fmt.Println(s1)
+	s2 := string(ciphertext[:])
+	fmt.Println(s2)
+	inverse := cipher.Cipher(ciphertext, key)
+	s3 := string(inverse[:])
+	fmt.Println(s3)
 }
 
 func get_sample_key() [44][4]byte {
