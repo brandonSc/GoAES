@@ -14,7 +14,7 @@ import (
 func Cipher(input [4 * Nb]byte, word [Nb * (Nr + 1)][4]byte) [4 * Nb]byte {
 	var state [4][Nb]byte
 
-	// state = input
+	// expand the input
 	for i := 0; i < 4*Nb; i++ {
 		state[i%4][i/4] = input[i]
 	}
@@ -32,6 +32,7 @@ func Cipher(input [4 * Nb]byte, word [Nb * (Nr + 1)][4]byte) [4 * Nb]byte {
 	state = ShiftRows(state)
 	state = commons.AddRoundKey(state, word[(Nr*Nb):((Nr+1)*Nb)])
 
+	// flatten the output
 	var output [4 * Nb]byte
 	for i := 0; i < 4*Nb; i++ {
 		output[i] = state[i%4][i/4]

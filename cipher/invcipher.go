@@ -33,6 +33,9 @@ func InvCipher(input [4 * Nb]byte, word [Nb * (Nr + 1)][4]byte) [4 * Nb]byte {
 	state = commons.AddRoundKey(state, word[(Nr*Nb):((Nr+1)*Nb)])
 
 	var output [4 * Nb]byte
+	for i := 0; i < 4*Nb; i++ {
+		output[i] = state[i%4][i/4]
+	}
 	return output
 }
 
@@ -40,7 +43,7 @@ func InvCipher(input [4 * Nb]byte, word [Nb * (Nr + 1)][4]byte) [4 * Nb]byte {
 func InvSubBytes(state [4][Nb]byte) [4][Nb]byte {
 	for r := 0; r < 4; r++ {
 		for c := 0; c < Nb; c++ {
-			state[r][c] = commons.SBox[state[r][c]]
+			state[r][c] = commons.InvSBox[state[r][c]]
 		}
 	}
 	return state
@@ -51,10 +54,10 @@ func InvShiftRows(state [4][Nb]byte) [4][Nb]byte {
 	var temp [4]byte
 	for r := 1; r < 4; r++ {
 		for c := 0; c < 4; c++ {
-			temp[c] = state[r][(c+r)%Nb]
+			temp[c] = state[r][c]
 		}
 		for c := 0; c < 4; c++ {
-			state[r][c] = temp[c]
+			state[r][(c+r)%Nb] = temp[c]
 		}
 	}
 	return state
@@ -74,7 +77,6 @@ func InvMixColumns(state [4][Nb]byte) [4][Nb]byte {
 				b[i] = state[i][c] << 1
 			}
 		}
-		// FIPS-197 Section 4.3
 		state[0][c] = b[0] ^ a[1] ^ b[1] ^ a[2] ^ a[3]
 		state[1][c] = a[0] ^ b[1] ^ a[2] ^ b[2] ^ a[3]
 		state[2][c] = a[0] ^ a[1] ^ b[2] ^ a[3] ^ b[3]
