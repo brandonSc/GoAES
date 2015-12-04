@@ -7,20 +7,32 @@ package main
 //
 
 import (
+	//"fmt"
 	"github.com/brandonSc/GoAES/cipher"
 )
 
 func main() {
-	plaintext := getSampleText()
-	cipher.Encrypt(plaintext, nil)
+	plaintext := get_sample_text()
+	key := get_sample_key()
+	cipher.Cipher(plaintext, key)
 }
 
-func getSampleText() [128]byte {
+func get_sample_key() [44][4]byte {
+	var key [44][4]byte
+	for i := 0; i < 44; i++ {
+		for j := 0; j < 4; j++ {
+			key[i][j] = byte(i * j)
+		}
+	}
+	return key
+}
+
+func get_sample_text() [16]byte {
 	// make something 128 bits long ..
-	text := "Hello, world! Hello, world! Hello, world! Hello world! Hello world! Hello world! Hello world! Hello world! Hello world! Hello world!Hello world! Hello world! Hello world!"
+	text := "Hello, world! Hello, world! Hello, world! Hello world!"
 	textBytes := []byte(text)
-	var message [128]byte
-	for i := 0; i < 128; i++ {
+	var message [16]byte
+	for i := 0; i < 16; i++ {
 		message[i] = textBytes[i]
 	}
 	return message

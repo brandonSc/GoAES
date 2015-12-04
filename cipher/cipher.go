@@ -1,76 +1,147 @@
 package cipher
 
 import (
-//"fmt"
+	//"fmt"
+	"github.com/brandonSc/GoAES/utils"
 )
 
 const (
-	Nb = 4 // number of columns (32 bit words) [FIPS-197]
+	Nb = 4  // number of columns (32 bit words) [FIPS-197]
+	Nk = 4  // number of words comprising the cipher key [FIPS-197]
+	Nr = 10 // number of rounds
 )
 
 //
-// AES encrypt a block of data
+// AES encrypt a block of data - FIPS-197, Section 5.1
 // @param plaintext - the input data to encrypt
 // @param key - key schedule as 2D byte-array
 // @return the AES encrypted plaintext
 //
-func Encrypt(plaintext [128]byte, key [][]byte) [128][128]byte {
-	var state [128][128]byte
+func Cipher(input [4 * Nb]byte, word [Nb * (Nr + 1)][4]byte) [4 * Nb]byte {
+	//Nr := (len(key) / (Nb - 1)) // number of rounds (10 for 128 bit)?? [FIPS-197]
+	var state [4][Nb]byte
 
-	//Nr := (len(state) / (Nb - 1)) // number of rounds (10, 12, or 24) [FIPS-197]
-
+	// state = input
 	for i := 0; i < 4*Nb; i++ {
-		state[i%4][i/4] = plaintext[i]
+		state[i%4][i/4] = input[i]
 	}
 
-	return state
+	state = AddRoundKey(state, word[0:Nb])
+
+	for rnd := 1; rnd < Nr; rnd++ {
+		state = SubBytes(state)
+		state = ShiftRows(state)
+		state = MixColumns(state)
+		state = AddRoundKey(state, word[rnd*Nb:((rnd+1)*Nb)])
+	}
+
+	state = SubBytes(state)
+	state = ShiftRows(state)
+	state = AddRoundKey(state, word[(Nr*Nb):((Nr+1)*Nb)])
+
+	return input //state
 }
 
-func KeyExpansion(key []byte) [][4]byte {
-	Nk := (len(key) / 4)
-	Nr := Nk + 6
-
-	w := make([][4]byte, Nb*(Nr+1))
+//
+// Break key into distinct key rounds.
+// @param key the main 128-bit AES key
+// @return a key schedule for rounds in AES
+//
+func KeyExpansion(key [4 * Nk]byte, word [Nb * (Nr + 1)][4]byte) [Nb * (Nr + 1)][4]byte {
 	var temp [4]byte
 
 	for i := 0; i < Nk; i++ {
-		var r = [4]byte{key[4*i], key[4*i+1], key[4*i+2], key[4*i+3]}
-		w[i] = r
+		w := [4]byte{key[4*i], key[4*i+1], key[4*i+2], key[4*i+3]}
+		word[i] = w
 	}
 
 	for i := Nk; i < (Nb * (Nr + 1)); i++ {
-		var b [4]byte
-		w[i] = b
-		for t := 0; t < 4; t++ {
-			temp[t] = w[i-1][t]
-		}
-		if (i % Nk) == 0 {
-			temp = SubWord(RotWord(temp))
-			for t := 0; t < 4; t++ {
-				temp[t] = temp[t] ^ RCon[i/Nk][t]
-			}
+		temp = word[i-1]
+		if i%Nk == 0 {
+			temp = utils.XorWord(SubWord(RotWord(temp)), RCon[i/Nk])
 		} else if Nk > 6 && i%Nk == 4 {
 			temp = SubWord(temp)
 		}
-		for t := 0; t < 4; t++ {
-			w[i][t] = w[i-Nk][t] ^ temp[t]
-		}
+		word[i] = utils.XorWord(word[i-Nk], temp)
 	}
-	return w
+	return word
+}
+
+//
+// XOR the state with the round key
+// See section 5.1.4 of FIPS-197.
+//
+func AddRoundKey(state [4][Nb]byte, key [][4]byte) [4][Nb]byte {
+	for c := 0; c < Nb; c++ {
+		state[0][c] = state[0][c] ^ key[c][0]
+		state[1][c] = state[1][c] ^ key[c][1]
+		state[2][c] = state[2][c] ^ key[c][2]
+		state[3][c] = state[3][c] ^ key[c][3]
+	}
+	return state
 }
 
 func RotWord(word [4]byte) [4]byte {
+	var temp = word[0]
+	for i := 0; i < 3; i++ {
+		word[i] = word[i+1]
+	}
+	word[3] = temp
 	return word
 }
 
 func SubWord(word [4]byte) [4]byte {
+	for i := 0; i < 4; i++ {
+		word[i] = SBox[word[i]]
+	}
 	return word
 }
 
-func sub_bytes(Nb int, s [][]byte) [][]byte {
-	return nil
+func SubBytes(state [4][Nb]byte) [4][Nb]byte {
+	for r := 0; r < 4; r++ {
+		for c := 0; c < Nb; c++ {
+			state[r][c] = SBox[state[r][c]]
+		}
+	}
+	return state
 }
 
+func ShiftRows(state [4][Nb]byte) [4][Nb]byte {
+	var temp [4]byte
+	for r := 1; r < 4; r++ {
+		for c := 0; c < 4; c++ {
+			temp[c] = state[r][(c+r)%Nb]
+		}
+		for c := 0; c < 4; c++ {
+			state[r][c] = temp[c]
+		}
+	}
+	return state
+}
+
+func MixColumns(state [4][Nb]byte) [4][Nb]byte {
+	for c := 0; c < 4; c++ {
+		var a [128]byte
+		var b [128]byte
+		for i := 0; i < 4; i++ {
+			a[i] = state[i][c]
+			// should further understand the significance of next line ..
+			if (state[i][c] & 0x80) == 1 {
+				b[i] = state[i][c] << (1 ^ 0x011b)
+			} else {
+				b[i] = state[i][c] << 1
+			}
+		}
+		// FIPS-197 Section 4.3
+		state[0][c] = b[0] ^ a[1] ^ b[1] ^ a[2] ^ a[3]
+		state[1][c] = a[0] ^ b[1] ^ a[2] ^ b[2] ^ a[3]
+		state[2][c] = a[0] ^ a[1] ^ b[2] ^ a[3] ^ b[3]
+		state[3][c] = a[0] ^ b[0] ^ a[1] ^ a[2] ^ b[3]
+	}
+	return state
+}
+
+// Figure 7 In FIPS-197
 var SBox = [256]byte{0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
 	0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
 	0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
